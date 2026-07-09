@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SLIS — Daily Entry</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo3.png') }}">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: #f5f5f5; color: #111; }
+.page-wrap { max-width: 860px; margin: 0 auto; padding: 28px 16px; }
+h2 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+.sub { font-size: 13px; color: #666; margin-bottom: 24px; }
+
+.card { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 28px; }
+
+.success-box { background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 12px 16px; font-size: 14px; color: #166534; margin-bottom: 20px; }
+.error-box   { background: #fff2f2; border: 1px solid #fca5a5; border-radius: 8px; padding: 12px 16px; font-size: 14px; color: #b91c1c; margin-bottom: 20px; }
+
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+@media (max-width: 640px) { .grid4 { grid-template-columns: 1fr 1fr; } }
+.full { grid-column: 1 / -1; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 13px; font-weight: 500; color: #333; }
+.field input, .field select, .field textarea {
+    padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px;
+    font-size: 14px; font-family: inherit; outline: none;
+    transition: border-color .12s; background: #fff;
+}
+.field input:focus, .field select:focus, .field textarea:focus { border-color: #111; }
+.field textarea { resize: vertical; min-height: 72px; }
+
+/* One card per PTR */
+.ptr-block {
+    border: 1px solid #e8e8e8; border-radius: 10px;
+    padding: 16px; margin-bottom: 14px; background: #fcfcfc;
+    display: flex; gap: 24px; align-items: flex-start;
+}
+.ptr-block.complete { border-color: #86efac; background: #f7fdf9; }
+.ptr-block.partial  { border-color: #fcd34d; background: #fffdf5; }
+
+.ptr-info {
+    flex: 1 1 45%;
+    display: flex; flex-direction: column; gap: 4px;
+}
+.ptr-info .ptr-title { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.ptr-info .ptr-row { font-size: 12px; color: #555; }
+.ptr-info .ptr-row span { color: #888; }
+.ptr-done {
+    font-size: 12px; color: #16a34a; font-weight: 500;
+    margin-top: 6px; visibility: hidden;
+}
+.ptr-block.complete .ptr-done { visibility: visible; }
+.ptr-block.partial .ptr-done { visibility: visible; color: #b45309; }
+
+.ptr-fields {
+    flex: 1 1 55%;
+    display: flex; flex-direction: column; gap: 10px;
+}
+.ptr-fields .field-row {
+    display: flex; align-items: center; gap: 10px;
+}
+.ptr-fields .field-row label {
+    font-size: 13px; font-weight: 500; color: #333;
+    width: 90px; flex-shrink: 0;
+}
+.ptr-fields .field-row input {
+    flex: 1;
+    padding: 9px 12px; border: 1px solid #ddd; border-radius: 8px;
+    font-size: 14px; font-family: inherit; outline: none;
+    transition: border-color .12s; background: #fff;
+}
+.ptr-fields .field-row input:focus { border-color: #111; }
+
+@media (max-width: 640px) {
+    .ptr-block { flex-direction: column; }
+}
+
+.btn-submit {
+    margin-top: 20px; padding: 12px 24px; width: 100%;
+    background: #111; color: #fff;
+    border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 500;
+    font-family: inherit; cursor: pointer;
+    transition: background .12s;
+}
+.btn-submit:hover:not(:disabled) { background: #333; }
+.btn-submit:disabled { background: #bbb; cursor: not-allowed; }
+
+.progress-note { font-size: 12px; color: #888; margin-top: 8px; text-align: center; }
+
+.divider { border: none; border-top: 1px solid #f0f0f0; margin: 20px 0; }
+</style>
+</head>
+<body>
+{% include '_navbar.html' %}
+
+<div class="page-wrap">
+    <h2>Daily Load Entry</h2>
+    <p class="sub">{{ ss_name }} </p>
+
+    {% if success %}
+    <div class="success-box">✓ {{ success }}</div>
+    {% endif %}
+    {% if error %}
+    <div class="error-box">{{ error }}</div>
+    {% endif %}
+
+    <div class="card">
+        <form method="post" action="{{ url_for('daily_entry') }}" id="batch-form">
+
+            <!-- Shared fields -->
+            <div class="grid" style="margin-bottom: 20px;">
+                <div class="field">
+    <label>Load Date</label>
+    <input type="date" name="loaddate" id="loaddate" value="{{ selected_date or '' }}" required>
+</div>
+                <div class="field">
+                    <label>Remarks (optional, applies to all PTRs)</label>
+                    <input type="text" name="remarks" placeholder="Any notes...">
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <!-- One block per PTR -->
+{% for ptr in ptrs %}
+<div class="ptr-block" data-sno="{{ ptr.sno }}">
+
+    <div class="ptr-info">
+        <div class="ptr-title">PTR-{{ ptr.sno }} – {{ ptr['Voltage_Rating'] }}</div>
+        <div class="ptr-row"><span>Capacity:</span> {{ ptr['PTR_Capacity'] }} MVA</div>
+        {% if ptr['Manufacturer'] %}
+        <div class="ptr-row"><span>Manufacturer:</span> {{ ptr['Manufacturer'] }}</div>
+        {% endif %}
+        {% if ptr['ManufSerialNo'] %}
+        <div class="ptr-row"><span>Serial No:</span> {{ ptr['ManufSerialNo'] }}</div>
+        {% endif %}
+        <div class="ptr-done">✓ Complete</div>
+    </div>
+<div class="ptr-fields">
+    <div class="field-row">
+        <label>Max Load</label>
+        <input type="number" class="req" name="maxload_{{ ptr.sno }}" step="0.01" min="0"
+               placeholder="MVA" autocomplete="off"
+               value="{{ ptr.maxload if ptr.maxload is not none else '' }}">
+    </div>
+    <div class="field-row">
+        <label>Max Time</label>
+        <input type="time" class="req" name="loadtime_{{ ptr.sno }}"
+               autocomplete="off"
+               value="{{ ptr.loadtime if ptr.loadtime is not none else '' }}">
+    </div>
+    <div class="field-row">
+        <label>Min Load</label>
+        <input type="number" class="req" name="minload_{{ ptr.sno }}" step="0.01" min="0"
+               placeholder="MVA" autocomplete="off"
+               value="{{ ptr.minload if ptr.minload is not none else '' }}">
+    </div>
+    <div class="field-row">
+        <label>Min Time</label>
+        <input type="time" class="req" name="min_loadtime_{{ ptr.sno }}"
+               autocomplete="off"
+               value="{{ ptr.min_loadtime if ptr.min_loadtime is not none else '' }}">
+    </div>
+</div>
+
+</div>
+{% endfor %}
+
+            <button type="submit" class="btn-submit" id="submit-btn" disabled>Save Entries</button>
+            <div class="progress-note" id="progress-note"></div>
+        </form>
+    </div>
+</div>
+
+<script>
+// Default load date = today
+const loaddateInput = document.getElementById('loaddate');
+if (!loaddateInput.value) {
+    loaddateInput.value = new Date().toISOString().split('T')[0];
+}
+loaddateInput.addEventListener('change', () => {
+    window.location.href = "{{ url_for('daily_entry') }}?date=" + loaddateInput.value;
+});
+// Prevent scroll wheel from changing number input values
+document.querySelectorAll('input[type="number"]').forEach(input => {
+    input.addEventListener('wheel', (e) => {
+        e.preventDefault();
+    }, { passive: false });
+});
+// Submit stays disabled until every required field of every PTR is filled.
+const form      = document.getElementById('batch-form');
+const submitBtn = document.getElementById('submit-btn');
+const note      = document.getElementById('progress-note');
+const blocks    = Array.from(document.querySelectorAll('.ptr-block'));
+const totalPtrs = blocks.length;
+
+function refreshState() {
+    let completeCount = 0;
+    let anyValue = false;
+    blocks.forEach(block => {
+        const inputs   = Array.from(block.querySelectorAll('.req'));
+        const filled   = inputs.filter(i => i.value.trim() !== '').length;
+        const complete = filled === inputs.length;
+        const partial  = filled > 0 && !complete;
+        block.classList.toggle('complete', complete);
+        block.classList.toggle('partial', partial);
+        block.querySelector('.ptr-done').textContent = complete ? '\u2713 Complete' : (partial ? 'Partial' : '');
+        if (complete) completeCount++;
+        if (filled > 0) anyValue = true;
+    });
+    const dateOk = document.getElementById('loaddate').value.trim() !== '';
+    submitBtn.disabled = !(dateOk && anyValue);
+    note.textContent = anyValue
+        ? `${completeCount} of ${totalPtrs} PTRs fully filled \u2014 partial values will be saved too`
+        : 'Enter at least one value to save';
+}
+
+form.addEventListener('input', refreshState);
+refreshState();
+
+// Guard against double-click double submission
+form.addEventListener('submit', () => {
+    submitBtn.disabled  = true;
+    submitBtn.textContent = 'Saving…';
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1116 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SLIS Dashboard</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo3.png') }}">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --navy:       #0a1628;
+            --navy-mid:   #0d2147;
+            --blue:       #1a56db;
+            --blue-light: #3b82f6;
+            --accent:     #00c2cb;
+            --accent2:    #f59e0b;
+            --surface:    #f0f4fa;
+            --card:       #ffffff;
+            --border:     #d1daea;
+            --text:       #1a2540;
+            --muted:      #6b7a99;
+            --highlight:  #e8f0fe;
+            --col-hi:     #dbeafe;
+            --success:    #10b981;
+            --danger:     #ef4444;
+            --radius:     10px;
+            --shadow:     0 2px 16px rgba(10,22,40,0.10);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'IBM Plex Sans', sans-serif;
+            background: var(--surface);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: linear-gradient(135deg, var(--navy) 0%, var(--navy-mid) 60%, #163166 100%);
+            color: white;
+            padding: 0 32px;
+            height: 100px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(10,22,40,0.35);
+            border-bottom: 2px solid var(--accent);
+        }
+
+        .logo { height: 68px; object-fit: contain; }
+
+        .title-block { text-align: center; flex: 1; }
+        .title-block h2 {
+            font-size: 22px; font-weight: 700;
+            letter-spacing: 0.06em; text-transform: uppercase; color: #e8f0ff;
+        }
+        .title-block h3 {
+            font-size: 22px; font-weight: 400;
+            color: var(--accent); letter-spacing: 0.14em;
+            margin-top: 6px; text-transform: uppercase;
+        }
+
+        .main-wrap { padding: 28px 32px; max-width: 1600px; margin: 0 auto; }
+
+        .page-titlebar {
+            display: flex; justify-content: space-between;
+            align-items: center; margin-bottom: 22px;
+        }
+        .page-titlebar h2 {
+            font-size: 20px; font-weight: 700; color: var(--navy);
+            display: flex; align-items: center; gap: 10px;
+        }
+        .page-titlebar h2::before {
+            content: ''; display: inline-block;
+            width: 4px; height: 22px;
+            background: var(--accent); border-radius: 2px;
+        }
+
+        .card {
+            background: var(--card); border-radius: var(--radius);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow); padding: 22px 26px; margin-bottom: 24px;
+        }
+        .card-title {
+            font-size: 13px; font-weight: 600; color: var(--muted);
+            text-transform: uppercase; letter-spacing: 0.09em;
+            margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+        }
+        .card-title::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+        .filters-grid { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; }
+        .filter-group label {
+            font-size: 11px; font-weight: 600; color: var(--muted);
+            text-transform: uppercase; letter-spacing: 0.06em;
+        }
+
+        select, input[type="date"] {
+            font-family: 'IBM Plex Sans', sans-serif; font-size: 13px;
+            padding: 8px 12px; border: 1.5px solid var(--border);
+            border-radius: 7px; background: white; color: var(--text);
+            outline: none; transition: border-color 0.2s, box-shadow 0.2s; min-width: 180px;
+        }
+        select:focus, input[type="date"]:focus {
+            border-color: var(--blue); box-shadow: 0 0 0 3px rgba(26,86,219,0.12);
+        }
+
+        .btn {
+            display: inline-flex; align-items: center; gap: 7px;
+            padding: 9px 20px; border-radius: 7px; border: none;
+            font-family: 'IBM Plex Sans', sans-serif; font-size: 13px;
+            font-weight: 600; cursor: pointer; transition: all 0.18s;
+            letter-spacing: 0.02em; white-space: nowrap;
+        }
+        .btn-primary { background: var(--blue); color: white; }
+        .btn-primary:hover { background: #1648c7; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(26,86,219,0.28); }
+        .btn-outline { background: white; color: var(--blue); border: 1.5px solid var(--blue); }
+        .btn-outline:hover { background: var(--highlight); }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover { background: #0ea371; transform: translateY(-1px); }
+        .btn-amber { background: var(--accent2); color: white; }
+        .btn-amber:hover { background: #d97706; transform: translateY(-1px); }
+        .btn-ghost { background: transparent; color: var(--muted); border: 1.5px solid var(--border); }
+        .btn-ghost:hover { background: var(--surface); color: var(--text); }
+        .btn-danger-ghost {
+            background: transparent; color: var(--danger);
+            border: 1.5px solid #fca5a5; font-size: 12px; padding: 7px 16px;
+        }
+        .btn-danger-ghost:hover { background: #fef2f2; }
+        .btns-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+
+        .table-wrap { overflow-x: auto; border-radius: var(--radius); border: 1px solid var(--border); }
+        table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+        thead tr { background: var(--navy); color: white; }
+        th {
+            padding: 10px 12px; text-align: center; font-weight: 600;
+            letter-spacing: 0.04em; font-size: 11.5px; text-transform: uppercase; white-space: nowrap;
+        }
+        td {
+            padding: 9px 12px; text-align: center;
+            border-bottom: 1px solid #e8edf5; color: var(--text); font-size: 12.5px;
+        }
+        tbody tr:hover { background: var(--highlight); }
+        tbody tr:last-child td { border-bottom: none; }
+
+        #dataTable td:nth-child(4), #dataTable th:nth-child(4),
+        #dataTable td:nth-child(10), #dataTable th:nth-child(10),
+        #dataTable td:nth-child(11), #dataTable th:nth-child(11),
+        #dataTable td:nth-child(12), #dataTable th:nth-child(12),
+        #dataTable td:nth-child(13), #dataTable th:nth-child(13),
+        #dataTable td:nth-child(14), #dataTable th:nth-child(14) { background-color: var(--col-hi); }
+        #dataTable thead tr th:nth-child(4), #dataTable thead tr th:nth-child(10),
+        #dataTable thead tr th:nth-child(11), #dataTable thead tr th:nth-child(12),
+        #dataTable thead tr th:nth-child(13), #dataTable thead tr th:nth-child(14) {
+            background-color: #1648c7; color: #bfdbfe;
+        }
+
+        #ptrDetailsTable td:nth-child(2), #ptrDetailsTable th:nth-child(2),
+        #ptrDetailsTable td:nth-child(9), #ptrDetailsTable th:nth-child(9) { background-color: var(--col-hi); }
+        #ptrDetailsTable thead tr th:nth-child(2), #ptrDetailsTable thead tr th:nth-child(9) {
+            background-color: #1648c7; color: #bfdbfe;
+        }
+
+        table td:nth-child(6), table th:nth-child(6) { width: 200px; max-width: 200px; word-wrap: break-word; }
+        table td:nth-child(9), table th:nth-child(9) { width: 110px; white-space: nowrap; text-align: center; }
+
+        #stationTable { width: auto; margin: 0; table-layout: auto; }
+        #stationTable th, #stationTable td { white-space: nowrap; text-align: center; min-width: 130px; }
+
+        .chart-card { position: relative; }
+        #stationChart { width: 100% !important; height: 220px !important; pointer-events: auto !important; }
+        #ptrChart     { width: 100% !important; height: 300px !important; pointer-events: auto !important; }
+
+        .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+        .two-col-asymmetric { display: grid; grid-template-columns: 30% 70%; gap: 24px; width: 100%; }
+        @media (max-width: 1100px) { .two-col, .two-col-asymmetric { grid-template-columns: 1fr; } }
+
+        .section-head {
+            font-size: 14px; font-weight: 700; color: var(--navy);
+            margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+        }
+        .section-head .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); display: inline-block; }
+
+        .top-actions { display: flex; align-items: center; gap: 10px; }
+
+        .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; }
+        .badge-live { background: #dcfce7; color: #15803d; }
+
+        .select2-container { width: 260px !important; }
+        .select2-container--default .select2-selection--multiple {
+            border: 1.5px solid var(--border) !important; border-radius: 7px !important;
+            min-height: 40px !important; background: white !important;
+            padding: 2px 6px !important; font-family: 'IBM Plex Sans', sans-serif;
+        }
+        .select2-container--default.select2-container--focus .select2-selection--multiple {
+            border-color: var(--blue) !important; box-shadow: 0 0 0 3px rgba(26,86,219,0.12) !important; background: white !important;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__rendered { display: block !important; max-height: 150px; overflow-y: auto; }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice {
+            /* FIX: was `position: relative` + absolutely-positioned remove button, which
+               landed the "x" over the middle of the label text instead of the right edge.
+               Using flex + order is more reliable: the remove button gets order:1 (higher
+               than the label's implicit order:0), so it always renders last/rightmost
+               regardless of Select2's internal DOM order for the remove span vs label text. */
+            display: flex !important; align-items: center !important;
+            width: fit-content; margin: 3px 0 !important;
+            background-color: var(--highlight) !important; border: 1px solid #93c5fd !important;
+            border-radius: 5px !important; color: var(--navy) !important;
+            font-weight: 500; font-size: 12px; padding: 3px 8px !important;
+            white-space: nowrap;
+        }
+        .select2-container--default .select2-selection--multiple .select2-selection__choice:hover { background-color: #dbeafe !important; }
+        .select2-selection__choice__remove {
+            order: 1; position: static !important; margin-left: 8px !important;
+            color: #6b7a99 !important; font-size: 14px !important; font-weight: bold !important;
+            cursor: pointer; background: transparent !important; border: none !important;
+        }
+        .select2-selection__choice__remove:hover { color: var(--danger) !important; }
+        .select2-dropdown { border: 1.5px solid var(--border) !important; border-radius: 8px !important; box-shadow: 0 8px 24px rgba(10,22,40,0.12) !important; font-family: 'IBM Plex Sans', sans-serif; font-size: 13px; }
+        .select2-results__option--highlighted { background: var(--highlight) !important; color: var(--navy) !important; }
+        .select2-results__option--selected { background: var(--col-hi) !important; color: var(--blue) !important; font-weight: 600; }
+
+        #chatIcon {
+            position: fixed; bottom: 24px; right: 24px;
+            width: 56px; height: 56px;
+            background: linear-gradient(135deg, var(--navy), var(--blue));
+            color: white; border-radius: 50%; display: none;
+            justify-content: center; align-items: center;
+            font-size: 24px; cursor: pointer; z-index: 9999;
+            box-shadow: 0 4px 20px rgba(26,86,219,0.4); transition: transform 0.2s;
+        }
+        #chatIcon:hover { transform: scale(1.08); }
+
+        #chatContainer {
+            position: fixed; bottom: 24px; right: 24px;
+            width: 360px; height: 480px; background: white;
+            border-radius: 14px; display: flex; flex-direction: column;
+            box-shadow: 0 8px 40px rgba(10,22,40,0.22); z-index: 9999;
+            border: 1px solid var(--border); overflow: hidden;
+        }
+        .chat-header {
+            background: linear-gradient(135deg, var(--navy), var(--navy-mid));
+            color: white; padding: 12px 16px;
+            display: flex; justify-content: space-between; align-items: center;
+            font-size: 13px; font-weight: 600; letter-spacing: 0.03em;
+        }
+        .chat-header-btns button {
+            background: rgba(255,255,255,0.15); border: none; color: white;
+            border-radius: 5px; padding: 3px 7px; cursor: pointer;
+            font-size: 12px; margin-left: 4px; transition: background 0.2s;
+        }
+        .chat-header-btns button:hover { background: rgba(255,255,255,0.28); }
+
+        #chatBox { flex: 1; overflow-y: auto; padding: 14px; font-size: 12.5px; background: #f8fafd; }
+        .chat-input-row { display: flex; border-top: 1px solid var(--border); background: white; }
+        #chatInput {
+            flex: 1; padding: 10px 12px; border: none; outline: none;
+            font-family: 'IBM Plex Sans', sans-serif; font-size: 13px;
+            background: transparent; color: var(--text); min-width: 0;
+        }
+        .chat-send-btn {
+            background: var(--blue); color: white; border: none;
+            padding: 10px 16px; cursor: pointer;
+            font-family: 'IBM Plex Sans', sans-serif; font-weight: 600;
+            font-size: 12.5px; transition: background 0.2s;
+        }
+        .chat-send-btn:hover { background: #1648c7; }
+        .chat-mic-btn {
+            background: transparent; border: none; padding: 0;
+            width: 36px; height: 36px; min-width: 36px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50%;
+            cursor: pointer; color: var(--muted); transition: all 0.2s;
+        }
+        .chat-mic-btn:hover { color: var(--blue); background: rgba(26,86,219,0.08); }
+        .chat-mic-btn.listening {
+            background: #ef4444; color: white;
+            animation: micPulse 1.4s ease-in-out infinite;
+        }
+        @keyframes micPulse {
+            0%   { box-shadow: 0 0 0 0   rgba(239,68,68,0.45); }
+            70%  { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
+            100% { box-shadow: 0 0 0 0   rgba(239,68,68,0); }
+        }
+
+        #ptrDetailsTable td:nth-child(2), #ptrDetailsTable th:nth-child(2),
+        #ptrDetailsTable td:nth-child(7), #ptrDetailsTable th:nth-child(7) { white-space: nowrap; min-width: 100px; }
+
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #c1cfe8; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #8fa8d4; }
+
+        hr.section-divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+        .text-muted { color: var(--muted); font-size: 12px; }
+        .mt-2 { margin-top: 8px; }
+        .mt-3 { margin-top: 14px; }
+    </style>
+</head>
+
+<body>
+{% include '_navbar.html' %}
+
+<!-- ================= HEADER ================= -->
+<div class="header">
+    <img src="{{ url_for('static', filename='images/logo.png') }}" class="logo left">
+    <div class="title-block">
+        <h2>Transmission Corporation of Telangana Limited</h2>
+        <h3>SLIS Dashboard Portal</h3>
+    </div>
+    <img src="{{ url_for('static', filename='images/logo2.png') }}" class="logo right">
+</div>
+
+<!-- ================= MAIN ================= -->
+<div class="main-wrap">
+
+    <div class="page-titlebar">
+        <h2>SLIS Dashboard </h2>
+        <a href="{{ url_for('logout') }}" class="btn btn-ghost" style="text-decoration:none;">⬅ Logout</a>
+    </div>
+
+    <div class="card">
+        <div class="card-title">🔍 Filters</div>
+        <div class="filters-grid">
+            <div class="filter-group">
+                <label>Zone</label>
+                <select id="zone"></select>
+            </div>
+            <div class="filter-group">
+                <label>Circle</label>
+                <select id="circle"></select>
+            </div>
+            <div class="filter-group">
+                <label>Substations</label>
+                <select id="ss" multiple></select>
+            </div>
+            <div class="filter-group">
+                <label>From Date</label>
+                <input type="date" id="from_date">
+            </div>
+            <div class="filter-group">
+                <label>To Date</label>
+                <input type="date" id="to_date">
+            </div>
+            <div class="filter-group" style="justify-content:flex-end;">
+                <label>&nbsp;</label>
+                <button class="btn btn-primary" onclick="loadData()">⚡ Load Data</button>
+            </div>
+        </div>
+        <div class="btns-row mt-3">
+            <button class="btn btn-ghost" onclick="toggleTable()">📋 Show / Hide Load Table</button>
+            <button class="btn btn-success" onclick="exportFullExcel()">📊 Download Excel Report</button>
+            <button class="btn btn-amber" onclick="downloadFullPDF()">📄 Download PDF Report</button>
+        </div>
+    </div>
+
+    <div id="tableContainer">
+        <div class="card">
+            <div class="card-title">📋 Load Data Table</div>
+            <div class="table-wrap">
+                <table id="dataTable"></table>
+            </div>
+        </div>
+    </div>
+
+    <div class="two-col-asymmetric">
+        <div class="card">
+            <div class="section-head"><span class="dot"></span> Station Max Load (Peak)</div>
+            <div class="table-wrap">
+                <table id="stationTable"></table>
+            </div>
+        </div>
+        <div class="card">
+            <div class="section-head"><span class="dot"></span> PTR Details on Station Max Date</div>
+            <div class="table-wrap">
+                <table id="ptrDetailsTable"></table>
+            </div>
+        </div>
+    </div>
+
+    <div class="card chart-card">
+        <div class="section-head"><span class="dot"></span> Station Max Trend</div>
+        <canvas id="stationChart"></canvas>
+    </div>
+
+    <div class="card chart-card">
+        <div class="section-head"><span class="dot"></span> PTR Wise Load Graph</div>
+        <canvas id="ptrChart"></canvas>
+    </div>
+
+</div>
+
+<!-- ================= CHATBOT ================= -->
+<div id="chatIcon" onclick="openChat()">🤖</div>
+
+<div id="chatContainer">
+    <div class="chat-header">
+        <span>🤖 SLIS Assistant</span>
+        <div class="chat-header-btns">
+            <button onclick="maximizeChat()" title="Maximize">⛶</button>
+            <button onclick="printChat()" title="Print">🖨</button>
+            <button onclick="exportChatExcel()" title="Export Excel">📊</button>
+            <button onclick="exportChatPDF()" title="Export PDF">📄</button>
+            <button onclick="closeChat()" title="Close">✕</button>
+        </div>
+    </div>
+    <div id="chatBox"></div>
+    <div class="chat-input-row">
+        <input id="chatInput" type="text" placeholder="Type a message...">
+        <button class="chat-mic-btn" id="micBtn" onclick="toggleVoice()" title="Voice Input">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 14.5c1.66 0 3-1.34 3-3v-6c0-1.66-1.34-3-3-3s-3 1.34-3 3v6c0 1.66 1.34 3 3 3z"/>
+                <path d="M17.3 11.5c0 3-2.54 5.1-5.3 5.1s-5.3-2.1-5.3-5.1H5c0 3.41 2.72 6.23 6 6.72V21h2v-2.78c3.28-.49 6-3.31 6-6.72h-1.7z"/>
+            </svg>
+        </button>
+        <button class="chat-send-btn" onclick="sendMessage()">Send</button>
+    </div>
+</div>
+
+<!-- ================= CDN LIBRARIES (must be before main script) ================= -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs/dist/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver/dist/FileSaver.min.js"></script>
+
+<!-- ================= MAIN SCRIPT ================= -->
+<script>
+
+function formatDate(dateStr) {
+    if (!dateStr) return "";
+    let d = new Date(dateStr);
+    return `${String(d.getDate()).padStart(2,'0')}.${String(d.getMonth()+1).padStart(2,'0')}.${d.getFullYear()}`;
+}
+
+// ── Select2 ──────────────────────────────────────────────────────────────────
+$('#ss').select2({ placeholder: "Select Substations", width: '350px', closeOnSelect: false });
+$('#ss').on('select2:select', function () { $('.select2-search__field').val(''); });
+
+// ── Load Substations ─────────────────────────────────────────────────────────
+function loadAllSubstations() {
+    fetch('all_substations')
+    .then(res => res.json())
+    .then(data => {
+        let html = "";
+        data.forEach(s => { html += `<option value="${s.ss_id}">${s.sub_station_name}</option>`; });
+        ss.innerHTML = html;
+        $('#ss').trigger('change');
+    });
+}
+loadAllSubstations();
+
+// ── Zones ─────────────────────────────────────────────────────────────────────
+fetch('zones')
+.then(res => res.json())
+.then(data => {
+    let html = `<option value="">-- Select Zone --</option>`;
+    data.forEach(z => html += `<option value="${z}">${z}</option>`);
+    zone.innerHTML = html;
+});
+
+zone.onchange = function() {
+    if (!this.value) { loadAllSubstations(); return; }
+    fetch(`circles/${this.value}`)
+    .then(res => res.json())
+    .then(data => {
+        let html = `<option value="">-- Select Circle --</option>`;
+        data.forEach(c => html += `<option value="${c}">${c}</option>`);
+        circle.innerHTML = html;
+    });
+};
+
+circle.onchange = function() {
+    if (!this.value) { loadAllSubstations(); return; }
+    fetch(`substations/${this.value}`)
+    .then(res => res.json())
+    .then(data => {
+        let html = "";
+        data.forEach(s => { html += `<option value="${s.ss_id}">${s.sub_station_name}</option>`; });
+        ss.innerHTML = html;
+        $('#ss').trigger('change');
+    });
+};
+
+// ── Default date (today) ───────────────────────────────────────────────────────
+(function () {
+    let d = new Date();
+    let f = d.toISOString().split('T')[0];
+    from_date.value = f;
+    to_date.value   = f;
+})();
+
+// ── Load Data ─────────────────────────────────────────────────────────────────
+function loadData() {
+    let ss_ids = Array.from(ss.selectedOptions).map(o => o.value);
+    if (ss_ids.length === 0) { alert("Select Substation"); return; }
+
+    fetch("data", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ ss_ids, from_date: from_date.value, to_date: to_date.value })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (!data || data.length === 0) { dataTable.innerHTML = "<tr><td>No Data</td></tr>"; return; }
+
+        let html = `<tr>
+            <th>SS ID</th><th>PTR No</th><th>Name</th>
+            <th class="highlight-col">PTR Capacity</th>
+            <th>Voltage</th><th>Manufacturer</th><th>Serial No</th><th>YoM</th><th>DOC</th>
+            <th class="highlight-col">Max Load</th><th class="highlight-col">Max Time</th>
+            <th class="highlight-col">Min Load</th><th class="highlight-col">Min Time</th>
+            <th class="highlight-col">Date</th>
+        </tr>`;
+
+        data.forEach(r => {
+            html += `<tr>
+                <td>${r.ss_id||''}</td><td>${r.sno||''}</td><td>${r.sub_station_name||''}</td>
+                <td class="highlight-col">${r.PTR_Capacity||''}</td>
+                <td>${r.Voltage_Rating||''}</td><td>${r.Manufacturer||''}</td>
+                <td>${r.ManufSerialNo||''}</td><td>${r.YoM||''}</td><td>${r.Doc||''}</td>
+                <td class="highlight-col">${r.maxload||''}</td>
+                <td class="highlight-col">${r.loadtime||''}</td>
+                <td class="highlight-col">${r.minload||''}</td>
+                <td class="highlight-col">${r.min_loadtime||''}</td>
+                <td class="highlight-col">${formatDate(r.loaddate)}</td>
+            </tr>`;
+        });
+
+        dataTable.innerHTML = html;
+        loadStationMax();
+        drawPTRGraph(data);
+    });
+}
+
+// ── Station Max ───────────────────────────────────────────────────────────────
+function loadStationMax() {
+    let ss_ids = Array.from(ss.selectedOptions).map(o => o.value);
+    fetch("station_max", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ ss_ids, from_date: from_date.value, to_date: to_date.value })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (!data.full || data.full.length === 0) { stationTable.innerHTML = "<tr><td>No Data</td></tr>"; return; }
+
+        let peak = data.peak[0];
+        stationTable.innerHTML = `
+        <tr><th>SS ID</th><th>Date</th><th>Station Max Load</th></tr>
+        <tr><td>${peak.ss_id}</td><td>${formatDate(peak.loaddate)}</td><td>${peak.station_max_load}</td></tr>`;
+
+        let labels = data.full.map(d => formatDate(d.loaddate));
+        let values = data.full.map(d => d.station_max_load);
+
+        if (window.stationChartObj) window.stationChartObj.destroy();
+
+        window.stationChartObj = new Chart(document.getElementById("stationChart"), {
+            type: "line",
+            data: {
+                labels,
+                datasets: [{
+                    label: "Station Max", data: values.map(v => v ? Number(v) : 0),
+                    borderColor: '#1a56db', backgroundColor: 'rgba(26,86,219,0.08)',
+                    fill: true, tension: 0.3, pointBackgroundColor: '#1a56db', pointRadius: 4
+                }]
+            },
+            options: {
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { labels: { font: { family: 'IBM Plex Sans' }, color: '#1a2540' } },
+                    tooltip: {
+                        enabled: true, mode: 'index', intersect: false,
+                        backgroundColor: '#0a1628', titleColor: '#00c2cb', bodyColor: '#ffffff', padding: 10,
+                        callbacks: { label: function(ctx) { return ' Station Max : ' + ctx.raw; } }
+                    }
+                },
+                scales: {
+                    x: { grid: { color: '#e8edf5' }, ticks: { font: { family: 'IBM Plex Sans', size: 11 }, color: '#1a2540' } },
+                    y: { grid: { color: '#e8edf5' }, ticks: { font: { family: 'IBM Plex Sans', size: 11 }, color: '#1a2540' } }
+                }
+            }
+        });
+
+        loadPTRDetails(peak.ss_id, peak.loaddate);
+    });
+}
+
+// ── PTR Graph ─────────────────────────────────────────────────────────────────
+function drawPTRGraph(data) {
+    let ptrMap  = {};
+    let dateSet = new Set();
+
+    data.forEach(r => {
+        let key  = r.sno + " (" + r.PTR_Capacity + " MVA)";
+        let date = formatDate(r.loaddate);
+        if (!ptrMap[key]) ptrMap[key] = {};
+        ptrMap[key][date] = r.maxload;
+        dateSet.add(date);
+    });
+
+    let labels   = Array.from(dateSet).sort((a,b) => new Date(a.split('.').reverse().join('-')) - new Date(b.split('.').reverse().join('-')));
+    let colors   = ["#1a56db","#00c2cb","#f59e0b","#10b981","#ef4444","#8b5cf6","#f97316","#06b6d4","#ec4899","#6366f1"];
+    let datasets = [];
+    let i        = 0;
+
+    Object.keys(ptrMap).forEach(ptr => {
+        let values = labels.map(d => ptrMap[ptr][d] || null);
+        datasets.push({
+            label: ptr, data: values.map(v => v ? Number(v) : 0),
+            borderColor: colors[i % colors.length], backgroundColor: colors[i % colors.length] + '18',
+            fill: false, tension: 0.2, pointRadius: 4
+        });
+        i++;
+    });
+
+    if (window.ptrChartObj) window.ptrChartObj.destroy();
+
+    window.ptrChartObj = new Chart(document.getElementById("ptrChart"), {
+        type: "line",
+        data: { labels, datasets },
+        options: {
+            maintainAspectRatio: false,
+            interaction: { mode: 'index', intersect: false },
+            plugins: {
+                legend: { labels: { font: { family: 'IBM Plex Sans', size: 11 }, color: '#1a2540' } },
+                tooltip: {
+                    enabled: true, mode: 'index', intersect: false,
+                    backgroundColor: '#0a1628', titleColor: '#00c2cb', bodyColor: '#ffffff', padding: 10,
+                    callbacks: { label: function(ctx) { return ' ' + ctx.dataset.label + ' : ' + ctx.raw; } }
+                }
+            },
+            scales: {
+                x: { grid: { color: '#e8edf5' }, ticks: { font: { family: 'IBM Plex Sans', size: 11 }, color: '#1a2540' } },
+                y: { grid: { color: '#e8edf5' }, ticks: { font: { family: 'IBM Plex Sans', size: 11 }, color: '#1a2540' } }
+            }
+        }
+    });
+}
+
+// ── PTR Details ───────────────────────────────────────────────────────────────
+function loadPTRDetails(ss_id, date) {
+    fetch("ptr_details_peak", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ ss_id, date })
+    })
+    .then(res => res.json())
+    .then(data => {
+        let table = document.getElementById("ptrDetailsTable");
+        if (!data || data.length === 0) { table.innerHTML = "<tr><td colspan='12'>No PTR Data</td></tr>"; return; }
+
+        let html = `<tr>
+            <th>PTR No</th><th>Capacity (MVA)</th><th>Voltage</th><th>Manufacturer</th>
+            <th>Serial No</th><th>YoM</th><th>DOC</th><th>Date</th>
+            <th>Max Load</th><th>Max Time</th><th>Min Load</th><th>Min Time</th>
+        </tr>`;
+
+        data.forEach(r => {
+            html += `<tr>
+                <td>${r.sno||''}</td><td>${r.PTR_Capacity||''}</td>
+                <td>${r.Voltage_Rating||''}</td><td>${r.Manufacturer||''}</td>
+                <td>${r.ManufSerialNo||''}</td><td>${r.YoM||''}</td>
+                <td>${r.Doc||''}</td><td>${r.loaddate||''}</td>
+                <td>${r.maxload||''}</td><td>${r.loadtime||''}</td>
+                <td>${r.minload||''}</td><td>${r.min_loadtime||''}</td>
+            </tr>`;
+        });
+
+        table.innerHTML = html;
+    });
+}
+
+// ── Toggle Table ──────────────────────────────────────────────────────────────
+function toggleTable() {
+    let tableDiv = document.getElementById("tableContainer");
+    tableDiv.style.display = tableDiv.style.display === "none" ? "block" : "none";
+}
+
+// ── Excel Export ──────────────────────────────────────────────────────────────
+async function exportFullExcel() {
+    try {
+        let workbook = new ExcelJS.Workbook();
+
+        function sheetFromTable(ws, tableId) {
+            let t = document.getElementById(tableId);
+            for (let r = 0; r < t.rows.length; r++) {
+                let row = [];
+                for (let c = 0; c < t.rows[r].cells.length; c++) row.push(t.rows[r].cells[c].innerText);
+                ws.addRow(row);
+            }
+        }
+
+        sheetFromTable(workbook.addWorksheet("Load Data"),    "dataTable");
+        sheetFromTable(workbook.addWorksheet("Station Max"),  "stationTable");
+        sheetFromTable(workbook.addWorksheet("PTR Details"),  "ptrDetailsTable");
+
+        let chartSheet   = workbook.addWorksheet("Graphs");
+        let stationCanvas = document.getElementById("stationChart");
+        if (stationCanvas) {
+            let img1 = workbook.addImage({ base64: stationCanvas.toDataURL("image/png"), extension: 'png' });
+            chartSheet.addImage(img1, { tl: { col: 0, row: 0 }, ext: { width: 800, height: 300 } });
+        }
+        let ptrCanvas = document.getElementById("ptrChart");
+        if (ptrCanvas) {
+            let img2 = workbook.addImage({ base64: ptrCanvas.toDataURL("image/png"), extension: 'png' });
+            chartSheet.addImage(img2, { tl: { col: 0, row: 20 }, ext: { width: 800, height: 300 } });
+        }
+
+        let ssName   = document.querySelector("#ss option:checked")?.text || "SS";
+        let from     = document.getElementById("from_date").value;
+        let fileName = `${ssName}_${from}_SLIS_Report.xlsx`;
+
+        let buffer = await workbook.xlsx.writeBuffer();
+        saveAs(new Blob([buffer]), fileName);
+    } catch (err) {
+        console.error("Excel Error:", err);
+        alert("Excel generation failed: " + err.message);
+    }
+}
+
+// ── PDF Export ────────────────────────────────────────────────────────────────
+async function downloadFullPDF() {
+    try {
+        const { jsPDF } = window.jspdf;
+        let doc      = new jsPDF("landscape");
+        let pageWidth = doc.internal.pageSize.getWidth();
+        let ss_name  = $('#ss option:selected').map(function(){ return $(this).text(); }).get().join(", ");
+        let today    = new Date().toISOString().split('T')[0];
+        let pageNo   = 1;
+
+        function addHeader() {
+            doc.setFontSize(14);
+            doc.text("TRANSMISSION CORPORATION OF TELANGANA LIMITED", pageWidth/2, 10, {align:"center"});
+            doc.setFontSize(11);
+            doc.text("SLIS Dashboard Portal", pageWidth/2, 16, {align:"center"});
+            doc.setFontSize(9);
+            doc.text(`Substation: ${ss_name}`, 14, 22);
+            doc.text(`Date: ${today}`, pageWidth - 60, 22);
+            doc.setFontSize(8);
+            doc.text(`Page ${pageNo}`, pageWidth - 20, 10);
+            pageNo++;
+        }
+
+        function tableRows(id) {
+            let head = [], body = [];
+            $(`#${id} tr`).each(function(i, row) {
+                let cells = [];
+                $(row).find("th,td").each(function() { cells.push($(this).text().trim()); });
+                if (i === 0) head.push(cells); else body.push(cells);
+            });
+            return { head, body };
+        }
+
+        addHeader();
+        let t1 = tableRows("dataTable");
+        doc.autoTable({ head: t1.head, body: t1.body, startY: 26, styles: { fontSize: 7 }, didDrawPage: addHeader });
+
+        doc.addPage(); addHeader();
+        let t2 = tableRows("stationTable");
+        doc.autoTable({ head: t2.head, body: t2.body, startY: 30, styles: { fontSize: 9 } });
+
+        doc.addPage(); addHeader();
+        let t3 = tableRows("ptrDetailsTable");
+        doc.autoTable({ head: t3.head, body: t3.body, startY: 30, styles: { fontSize: 8 } });
+
+        let sc = document.getElementById("stationChart");
+        if (sc) { doc.addPage(); addHeader(); doc.addImage(sc.toDataURL("image/png"), "PNG", 20, 30, 250, 100); }
+
+        let pc = document.getElementById("ptrChart");
+        if (pc) { doc.addPage(); addHeader(); doc.addImage(pc.toDataURL("image/png"), "PNG", 20, 30, 250, 100); }
+
+        doc.save(`SLIS_Report_${today}.pdf`);
+    } catch (error) {
+        console.error("PDF ERROR:", error);
+        alert("PDF generation failed: " + error.message);
+    }
+}
+
+// ════════════════════════════════════════════════════════════════════════════
+// CHATBOT
+// ════════════════════════════════════════════════════════════════════════════
+let lastQuery   = "";
+let isMaximized = false;
+let isListening = false;
+let recognition = null;
+
+// ── Hide mic button on browsers that don't support Web Speech API (e.g. Firefox)
+(function hideMicIfUnsupported() {
+    const voiceSupported = ("SpeechRecognition" in window) || ("webkitSpeechRecognition" in window);
+    if (!voiceSupported) {
+        const btn = document.getElementById("micBtn");
+        if (btn) {
+            btn.style.display = "none";
+        }
+    }
+})();
+
+const chatColors = ["#1a56db","#00c2cb","#f59e0b","#10b981","#ef4444","#8b5cf6","#f97316","#06b6d4","#ec4899","#6366f1"];
+
+function sendMessage() {
+    let input = document.getElementById("chatInput");
+    let msg   = input.value.trim();
+    if (!msg) return;
+    console.log("SENDING TO BACKEND:", JSON.stringify(msg));
+    lastQuery   = msg;
+    addUserMessage(msg);
+    input.value = "";
+    fetch("chat", {
+        method:  "POST",
+        headers: {"Content-Type": "application/json"},
+        body:    JSON.stringify({ message: msg, ss_id: null })
+    })
+    .then(r => r.json())
+    .then(d => handleResponse(d))
+    .catch(e => { console.error(e); addBotMessage("❌ Server error"); });
+}
+
+function handleResponse(data) {
+    if      (data.type === "text")    addBotMessage(data.reply);
+    else if (data.type === "table")   addBotTable(data.data, data.chart, data.ptr_data, data.ptr_label, data.message);
+    else if (data.type === "options") addOptions(data);
+}
+
+function addBotTable(data, chartData, ptrData, ptrLabel, headerMessage) {
+    let box = document.getElementById("chatBox");
+    if (!data || data.length === 0) { addBotMessage("⚠️ No data found"); return; }
+
+    if (headerMessage) {
+        box.innerHTML += `<div style="margin:6px 0 2px;font-size:12px;font-weight:600;color:#1a2540;">${headerMessage}</div>`;
+    }
+
+    // ── Main data table ──────────────────────────────────────────────────────
+    let html = `<div style="overflow-x:auto;margin:6px 0;max-width:100%;">
+    <table border="1" style="font-size:11px;border-collapse:collapse;width:100%;">`;
+
+    html += "<tr>";
+    Object.keys(data[0]).forEach(k => {
+        html += `<th style="background:#0a1628;color:#00c2cb;padding:4px 7px;white-space:nowrap;font-size:10px;">${k}</th>`;
+    });
+    html += "</tr>";
+
+    data.forEach(r => {
+        html += "<tr>";
+        Object.values(r).forEach(v => {
+            html += `<td style="padding:3px 7px;border-color:#d1daea;white-space:nowrap;font-size:11px;">${v ?? ""}</td>`;
+        });
+        html += "</tr>";
+    });
+    html += "</table></div>";
+    box.innerHTML += html;
+
+    // ── Inline chart ─────────────────────────────────────────────────────────
+    if (chartData && chartData.labels && chartData.labels.length > 1) {
+        let canvasId = "chatChart_" + Date.now();
+        box.innerHTML += `<div style="margin:8px 0;max-width:100%;"><canvas id="${canvasId}" style="max-height:200px;"></canvas></div>`;
+
+        setTimeout(() => {
+            let ctx = document.getElementById(canvasId);
+            if (!ctx) return;
+
+            let datasets = chartData.datasets.map((ds, i) => ({
+                label:           ds.label,
+                data:            ds.data,
+                borderColor:     chatColors[i % chatColors.length],
+                backgroundColor: chatColors[i % chatColors.length] + "18",
+                fill:            false,
+                tension:         0.3,
+                pointRadius:     3,
+                type:            ds.type || "line"
+            }));
+
+            new Chart(ctx, {
+                type: "line",
+                data: { labels: chartData.labels, datasets },
+                options: {
+                    maintainAspectRatio: true,
+                    responsive: true,
+                    plugins: { legend: { labels: { font: { size: 10 } } } },
+                    scales: {
+                        x: { ticks: { font: { size: 9 } } },
+                        y: { ticks: { font: { size: 9 } } }
+                    }
+                }
+            });
+        }, 100);
+    }
+
+    // ── Secondary PTR table (from station max + ptr command) ─────────────────
+    if (ptrData && ptrData.length > 0) {
+        let ptrHtml = `<div style="margin:8px 0;font-size:11px;font-weight:600;color:#1a2540;">
+            📊 ${ptrLabel || 'PTR Details on Peak Date'}
+        </div>
+        <div style="overflow-x:auto;margin:4px 0;max-width:100%;">
+        <table border="1" style="font-size:11px;border-collapse:collapse;width:100%;">`;
+        ptrHtml += "<tr>";
+        Object.keys(ptrData[0]).forEach(k => {
+            ptrHtml += `<th style="background:#163166;color:#00c2cb;padding:4px 7px;white-space:nowrap;font-size:10px;">${k}</th>`;
+        });
+        ptrHtml += "</tr>";
+        ptrData.forEach(r => {
+            ptrHtml += "<tr>";
+            Object.values(r).forEach(v => {
+                ptrHtml += `<td style="padding:3px 7px;border-color:#d1daea;white-space:nowrap;font-size:11px;">${v ?? ""}</td>`;
+            });
+            ptrHtml += "</tr>";
+        });
+        ptrHtml += "</table></div>";
+        box.innerHTML += ptrHtml;
+    }
+
+    box.scrollTop = box.scrollHeight;
+}
+
+function addOptions(data) {
+    let box  = document.getElementById("chatBox");
+    let resolvedQuery = data.resolved_query || lastQuery;
+    let html = `<div style="margin:6px 0;"><b style="font-size:11px;color:#1a2540;">${data.message}</b><br>`;
+    data.options.forEach(opt => {
+        html += `<button onclick="selectSS('${opt.ss_id}','${opt.name.replace(/'/g,"\\'")}','${resolvedQuery.replace(/'/g,"\\'")}')"
+            style="margin:3px 3px 0 0;padding:4px 9px;background:#1a56db;color:white;
+                   border:none;border-radius:5px;font-size:11px;cursor:pointer;">
+            ${opt.name}</button>`;
+    });
+    html += "</div>";
+    box.innerHTML += html;
+    box.scrollTop  = box.scrollHeight;
+}
+
+function selectSS(ss_id, name, resolvedQuery) {
+    addUserMessage(name);
+    fetch("chat", {
+        method:  "POST",
+        headers: {"Content-Type": "application/json"},
+        body:    JSON.stringify({
+            message: resolvedQuery || lastQuery,
+            ss_id,
+            already_normalized: true
+        })
+    })
+    .then(r => r.json())
+    .then(d => handleResponse(d))
+    .catch(e => { console.error(e); addBotMessage("❌ Error"); });
+}
+
+function addUserMessage(msg) {
+    let box = document.getElementById("chatBox");
+    box.innerHTML += `<div style="text-align:right;margin:5px 0;">
+        <span style="background:#dbeafe;padding:5px 9px;border-radius:10px 10px 2px 10px;
+              font-size:12px;color:#1e3a5f;display:inline-block;max-width:90%;">${msg}</span></div>`;
+    box.scrollTop = box.scrollHeight;
+}
+
+function addBotMessage(msg) {
+    let box = document.getElementById("chatBox");
+    box.innerHTML += `<div style="text-align:left;margin:5px 0;">
+        <span style="background:#e6fcf5;padding:5px 9px;border-radius:10px 10px 10px 2px;
+              font-size:12px;color:#065f46;display:inline-block;max-width:90%;">
+            ${String(msg).replace(/\n/g,"<br>")}</span></div>`;
+    box.scrollTop = box.scrollHeight;
+}
+
+function maximizeChat() {
+    let c = document.getElementById("chatContainer");
+    if (!isMaximized) {
+        c.style.width = "90vw"; c.style.height = "85vh";
+        c.style.bottom = "5vh"; c.style.right   = "5vw";
+        isMaximized = true;
+    } else {
+        c.style.width = "360px"; c.style.height = "480px";
+        c.style.bottom = "24px"; c.style.right   = "24px";
+        isMaximized = false;
+    }
+}
+
+function minimizeChat() {
+    let box    = document.getElementById("chatBox");
+    let row    = document.querySelector(".chat-input-row");
+    let hidden = box.style.display === "none";
+    box.style.display = hidden ? "block" : "none";
+    row.style.display = hidden ? "flex"  : "none";
+}
+
+function closeChat() {
+    document.getElementById("chatContainer").style.display = "none";
+    document.getElementById("chatIcon").style.display      = "flex";
+}
+
+function openChat() {
+    document.getElementById("chatContainer").style.display = "flex";
+    document.getElementById("chatIcon").style.display      = "none";
+}
+
+function printChat() {
+    let content = document.getElementById("chatBox").innerHTML;
+    let win = window.open("","_blank","width=900,height=700");
+    win.document.write(`<html><head><title>SLIS Chat Export</title>
+        <style>
+            body{font-family:Arial,sans-serif;padding:20px;font-size:12px;}
+            table{border-collapse:collapse;width:100%;margin:6px 0;}
+            th{background:#0a1628;color:white;padding:4px 8px;font-size:11px;}
+            td{padding:3px 8px;border:1px solid #ccc;font-size:11px;}
+        </style></head>
+        <body>
+{% include '_navbar.html' %}<h3>🤖 SLIS Assistant — Chat Export</h3>
+        <p style="color:#666;font-size:11px;">Printed on: ${new Date().toLocaleString()}</p>
+        <hr>${content}</body></html>`);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 500);
+}
+
+function exportChatExcel() {
+    try {
+        let tables = document.getElementById("chatBox").querySelectorAll("table");
+        if (tables.length === 0) { alert("No table data in chat to export"); return; }
+        let wb = XLSX.utils.book_new();
+        tables.forEach((table, idx) => {
+            let ws = XLSX.utils.table_to_sheet(table);
+            XLSX.utils.book_append_sheet(wb, ws, "Chat_" + (idx + 1));
+        });
+        XLSX.writeFile(wb, `SLIS_Chat_${new Date().toISOString().split("T")[0]}.xlsx`);
+    } catch(e) { console.error(e); alert("Export failed: " + e.message); }
+}
+
+function exportChatPDF() {
+    try {
+        const { jsPDF } = window.jspdf;
+        let doc   = new jsPDF();
+        let today = new Date().toLocaleString();
+        let pageW = doc.internal.pageSize.getWidth();
+        doc.setFontSize(13);
+        doc.text("SLIS Assistant — Chat Export", pageW/2, 12, {align:"center"});
+        doc.setFontSize(8);
+        doc.text("Exported: " + today, pageW/2, 18, {align:"center"});
+        let y      = 25;
+        let tables = document.getElementById("chatBox").querySelectorAll("table");
+        if (tables.length === 0) { alert("No table data in chat to export"); return; }
+        tables.forEach((table, idx) => {
+            let head = [], body = [];
+            table.querySelectorAll("tr").forEach((row, i) => {
+                let cells = [];
+                row.querySelectorAll("th,td").forEach(c => cells.push(c.innerText.trim()));
+                if (i === 0) head.push(cells); else body.push(cells);
+            });
+            doc.setFontSize(9);
+            doc.text("Table " + (idx + 1), 14, y); y += 4;
+            doc.autoTable({ head, body, startY: y, styles:{fontSize:7, cellPadding:2},
+                headStyles:{fillColor:[10,22,40]}, margin:{left:14,right:14} });
+            y = doc.lastAutoTable.finalY + 8;
+        });
+        doc.save(`SLIS_Chat_${new Date().toISOString().split("T")[0]}.pdf`);
+    } catch(e) { console.error(e); alert("PDF export failed: " + e.message); }
+}
+
+function toggleVoice() {
+    if (!("SpeechRecognition" in window) && !("webkitSpeechRecognition" in window)) {
+        addBotMessage("❌ Voice input is not supported in this browser. Please use Chrome or Edge (Firefox does not support the Web Speech API).");
+        return;
+    }
+    let micBtn = document.getElementById("micBtn");
+    if (isListening) {
+        if (recognition) recognition.stop();
+        isListening = false;
+        micBtn.classList.remove("listening");
+        return;
+    }
+    recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = "en-IN"; recognition.continuous = false; recognition.interimResults = false;
+
+    recognition.onstart = function() {
+        isListening = true;
+        micBtn.classList.add("listening");
+        addBotMessage("🎤 Listening... speak now");
+    };
+    recognition.onresult = function(event) {
+        let text = event.results[0][0].transcript;
+        // Speech recognition often adds trailing punctuation (e.g. a "?")
+        // and capitalizes the first word — normalize so it matches typed input.
+        text = text.trim().replace(/[?.!]+$/g, "");
+        console.log("VOICE TRANSCRIPT:", text);
+        document.getElementById("chatInput").value = text;
+        addBotMessage(`🎤 Heard: "${text}"`);
+        isListening = false;
+        micBtn.classList.remove("listening");
+        sendMessage();
+    };
+    recognition.onerror = function(e) {
+        addBotMessage("❌ Voice error: " + e.error);
+        isListening = false;
+        micBtn.classList.remove("listening");
+    };
+    recognition.onend = function() {
+        isListening = false;
+        micBtn.classList.remove("listening");
+    };
+    recognition.start();
+}
+
+document.getElementById("chatInput").addEventListener("keypress", function(e) {
+    if (e.key === "Enter") sendMessage();
+});
+
+</script>
+
+</body>
+</html>

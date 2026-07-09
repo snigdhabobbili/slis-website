@@ -1,0 +1,72 @@
+<!-- ═══ TOP NAVBAR ═══ -->
+<style>
+.slis-nav {
+    position: sticky; top: 0; z-index: 200;
+    background: #fff;
+    border-bottom: 1px solid #e5e5e5;
+    display: flex; align-items: center;
+    padding: 0 24px; height: 52px; gap: 4px;
+}
+.slis-nav .nav-brand {
+    font-size: 14px; font-weight: 600; color: #111;
+    margin-right: 20px; white-space: nowrap;
+}
+.slis-nav a {
+    font-size: 13px; color: #555; text-decoration: none;
+    padding: 6px 12px; border-radius: 6px;
+    transition: background .12s, color .12s;
+    white-space: nowrap;
+}
+.slis-nav a:hover { background: #f5f5f5; color: #111; }
+.slis-nav a.active { background: #f0f0f0; color: #111; font-weight: 500; }
+.slis-nav .spacer { flex: 1; }
+.slis-nav .user-chip {
+    font-size: 12px; color: #666;
+    background: #f5f5f5; border-radius: 6px;
+    padding: 5px 10px; margin-right: 8px;
+}
+.slis-nav .btn-logout {
+    font-size: 13px; color: #b91c1c;
+    padding: 6px 12px; border-radius: 6px;
+    text-decoration: none;
+    transition: background .12s;
+}
+.slis-nav .btn-logout:hover { background: #fff2f2; }
+</style>
+
+<nav class="slis-nav">
+    <span class="nav-brand">SLIS</span>
+
+    <a href="{{ url_for('dashboard') }}"
+       class="{{ 'active' if request.endpoint == 'dashboard' else '' }}">Dashboard</a>
+
+    {% if session.get('role') == 'field' %}
+    <a href="{{ url_for('daily_entry') }}"
+       class="{{ 'active' if request.endpoint == 'daily_entry' else '' }}">Daily Entry</a>
+    {% endif %}
+
+    <a href="{{ url_for('table_substationload') }}"
+       class="{{ 'active' if request.endpoint == 'table_substationload' else '' }}">Load Table</a>
+
+    <a href="{{ url_for('table_capacity') }}"
+       class="{{ 'active' if request.endpoint == 'table_capacity' else '' }}">Capacity</a>
+
+    <a href="{{ url_for('table_substations') }}"
+       class="{{ 'active' if request.endpoint == 'table_substations' else '' }}">Substations</a>
+
+    {% if session.get('role') == 'admin' %}
+    <a href="{{ url_for('admin_settings') }}"
+       class="{{ 'active' if request.endpoint == 'admin_settings' else '' }}">Settings</a>
+    {% endif %}
+
+    <span class="spacer"></span>
+
+    <span class="user-chip">
+    {{ session.get('user') }}
+    {% if session.get('role') == 'officer' %} · Officer
+    {% elif session.get('role') == 'field' %} · {{ session.get('ss_name', 'Field User') }}
+    {% endif %}
+</span>
+
+    <a href="{{ url_for('logout') }}" class="btn-logout">Logout</a>
+</nav>

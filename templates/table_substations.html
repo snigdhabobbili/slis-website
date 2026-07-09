@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SLIS — Substation Master Data</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo3.png') }}">
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: #f5f5f5; color: #111; }
+.page-wrap { padding: 28px 20px; }
+.page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+h2 { font-size: 20px; font-weight: 600; }
+.count { font-size: 13px; color: #666; }
+.search-box { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; font-family: inherit; outline: none; width: 240px; }
+.search-box:focus { border-color: #111; }
+.table-wrap { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; overflow: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 900px; }
+thead th {
+    padding: 11px 14px; text-align: left;
+    font-size: 12px; font-weight: 600; color: #555;
+    background: #fafafa; border-bottom: 1px solid #e5e5e5;
+    white-space: nowrap; position: sticky; top: 0;
+}
+tbody td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; color: #222; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: #fafafa; }
+.no-rows { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
+</style>
+</head>
+<body>
+{% include '_navbar.html' %}
+
+<div class="page-wrap">
+    <div class="page-head">
+        <div>
+            <h2>Substation Master Data</h2>
+            <span class="count" id="row-count">{{ rows|length }} records</span>
+        </div>
+        <input type="text" class="search-box" placeholder="Search..." oninput="filterTable(this.value)">
+    </div>
+
+    <div class="table-wrap">
+        <table id="data-table">
+            <thead>
+                <tr>
+                    {% for col in columns %}
+                    <th>{{ col }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                {% for row in rows %}
+                <tr>
+                    {% for col in columns %}
+                    <td>{{ row[col] if row[col] is not none else '' }}</td>
+                    {% endfor %}
+                </tr>
+                {% else %}
+                <tr><td class="no-rows" colspan="{{ columns|length }}">No data available</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+function filterTable(q) {
+    q = q.toLowerCase();
+    const rows = document.querySelectorAll('#table-body tr');
+    let visible = 0;
+    rows.forEach(r => {
+        const match = r.textContent.toLowerCase().includes(q);
+        r.style.display = match ? '' : 'none';
+        if (match) visible++;
+    });
+    document.getElementById('row-count').textContent = visible + ' records';
+}
+</script>
+</body>
+</html>

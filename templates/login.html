@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SLIS — Login</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo3.png') }}">
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: #f5f5f5; color: #111; min-height: 100vh; display: flex; flex-direction: column; }
+
+.top-bar {
+    background: transparent;
+    padding: 64px 16px 32px;
+    text-align: center;
+
+}
+.top-bar .brand-logo { height: 90px; object-fit: contain; margin-bottom: 16px; }
+.top-bar h1 { font-size: 22px; font-weight: 600; color: #111; }
+.top-bar p  { font-size: 13px; color: #666; margin-top: 4px; }
+
+.body-wrap {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 32px 16px;
+}
+
+.login-card {
+    background: #fff;
+    border: 1px solid #e5e5e5;
+    border-radius: 12px;
+    padding: 40px 36px;
+    width: 100%;
+    max-width: 400px;
+}
+.login-card h2 { font-size: 20px; font-weight: 600; margin-bottom: 6px; }
+.login-card p  { font-size: 13px; color: #666; margin-bottom: 28px; }
+
+.field { margin-bottom: 18px; }
+.field label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: #333; }
+.field input {
+    width: 100%; padding: 10px 12px;
+    border: 1px solid #ddd; border-radius: 8px;
+    font-size: 14px; font-family: inherit;
+    outline: none; transition: border-color .15s;
+}
+.field input:focus { border-color: #111; }
+
+.btn-login {
+    width: 100%; padding: 11px;
+    background: #111; color: #fff;
+    border: none; border-radius: 8px;
+    font-size: 14px; font-weight: 500;
+    font-family: inherit; cursor: pointer;
+    margin-top: 8px; transition: background .15s;
+}
+.btn-login:hover { background: #333; }
+
+.error-box {
+    background: #fff2f2; border: 1px solid #fca5a5;
+    border-radius: 8px; padding: 10px 14px;
+    font-size: 13px; color: #b91c1c;
+    margin-bottom: 20px;
+}
+
+.hint { font-size: 12px; color: #999; text-align: center; margin-top: 20px; }
+
+footer { text-align: center; padding: 16px; font-size: 12px; color: #aaa; }
+</style>
+</head>
+<body>
+
+<div class="top-bar">
+    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="brand-logo">
+    <h1>Transmission Corporation of Telangana Limited</h1>
+    <p>Substation Load Information System</p>
+</div>
+
+<div class="body-wrap">
+    <div class="login-card">
+        <h2>Sign in</h2>
+        <p>Enter your credentials</p>
+
+        {% if error %}
+        <div class="error-box">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="{{ url_for('login') }}">
+            <div class="field">
+                <label>Username / Mobile No</label>
+                <input type="text" name="username" required autofocus autocomplete="off" placeholder="Username or mobile number">
+            </div>
+            <div class="field">
+                <label>Password</label>
+                <input type="password" name="password" required autocomplete="off" placeholder="Password">
+            </div>
+            <button type="submit" class="btn-login">Sign in</button>
+        </form>
+
+        
+    </div>
+</div>
+
+<footer>© 2026 Transmission Corporation of Telangana Limited</footer>
+</body>
+</html>

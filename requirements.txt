@@ -1,0 +1,6 @@
+flask
+psycopg2-binary
+pandas
+openpyxl
+requests
+werkzeug

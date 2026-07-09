@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SLIS — Admin Settings</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo3.png') }}">
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: #f5f5f5; color: #111; }
+.page-wrap { max-width: 1100px; margin: 0 auto; padding: 28px 20px; }
+h2 { font-size: 20px; font-weight: 600; margin-bottom: 24px; }
+
+.section { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; padding: 24px; margin-bottom: 24px; }
+.section h3 { font-size: 15px; font-weight: 600; margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid #f0f0f0; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 16px; }
+.field label { display: block; font-size: 12px; font-weight: 500; color: #555; margin-bottom: 5px; }
+.field input, .field select {
+    width: 100%; padding: 8px 10px;
+    border: 1px solid #ddd; border-radius: 7px;
+    font-size: 13px; font-family: inherit; outline: none;
+}
+.field input:focus, .field select:focus { border-color: #111; }
+
+.btn { padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 500; font-family: inherit; cursor: pointer; border: none; }
+.btn-dark  { background: #111; color: #fff; }
+.btn-dark:hover { background: #333; }
+.btn-red   { background: #fff2f2; color: #b91c1c; border: 1px solid #fca5a5; }
+.btn-red:hover { background: #fee2e2; }
+
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th { padding: 9px 12px; text-align: left; font-size: 12px; font-weight: 600; color: #555; background: #fafafa; border-bottom: 1px solid #e5e5e5; }
+tbody td { padding: 9px 12px; border-bottom: 1px solid #f0f0f0; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: #fafafa; }
+
+.table-wrap { overflow-x: auto; }
+.search-box { padding: 7px 11px; border: 1px solid #ddd; border-radius: 7px; font-size: 13px; font-family: inherit; outline: none; width: 220px; margin-bottom: 14px; }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 20px; }
+.tab { padding: 8px 16px; border-radius: 7px; font-size: 13px; cursor: pointer; border: 1px solid #e5e5e5; background: #fff; }
+.tab.active { background: #111; color: #fff; border-color: #111; }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+.user-select-wrap { position: relative; }
+.user-dropdown {
+    display: none;
+    position: absolute;
+    z-index: 20;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 7px;
+    max-height: 240px;
+    overflow-y: auto;
+    box-shadow: 0 4px 14px rgba(0,0,0,0.10);
+    margin-top: 4px;
+}
+.user-dropdown.open { display: block; }
+.user-dropdown .group-label { padding: 6px 12px; font-size: 11px; font-weight: 600; color: #999; background: #fafafa; }
+.user-dropdown .option { padding: 8px 12px; font-size: 13px; cursor: pointer; }
+.user-dropdown .option:hover, .user-dropdown .option.highlighted { background: #f0f0f0; }
+.user-dropdown .empty { padding: 10px 12px; font-size: 13px; color: #999; }
+</style>
+</head>
+<body>
+{% include '_navbar.html' %}
+
+<div class="page-wrap">
+    <h2>Admin Settings</h2>
+
+    <!-- TABS -->
+    <div class="tabs">
+        <div class="tab active" onclick="showTab('field-users')">Field Users</div>
+        <div class="tab" onclick="showTab('officers')">Dashboard Officers</div>
+        <div class="tab" onclick="showTab('add-user')">Add User</div>
+        <div class="tab" onclick="showTab('change-pass')">Change Password</div>
+    </div>
+
+    <!-- TAB: Field Users -->
+    <div class="tab-panel active" id="tab-field-users">
+        <div class="section">
+            <h3>Field Users (Substation Operators)</h3>
+            <input type="text" class="search-box" placeholder="Search substations..." oninput="filterTable('field-table', this.value)">
+            <div class="table-wrap">
+                <table id="field-table">
+                    <thead>
+                        <tr>
+                            <th>SS ID</th><th>Substation</th><th>Voltage</th>
+                            <th>Mobile No</th><th>Zone</th><th>Circle</th><th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in substations %}
+                        <tr>
+                            <td>{{ s.ss_id }}</td>
+                            <td>{{ s.sub_station_name }}</td>
+                            <td>{{ s.voltage }}</td>
+                            <td>{{ s.mobile_no or '—' }}</td>
+                            <td>{{ s.zone }}</td>
+                            <td>{{ s.circle }}</td>
+                            <td>
+                                <form method="post" action="{{ url_for('admin_delete_user', ss_id=s.ss_id) }}"
+                                      onsubmit="return confirm('Delete {{ s.sub_station_name }}?')">
+                                    <button type="submit" class="btn btn-red">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: Officers -->
+    <div class="tab-panel" id="tab-officers">
+        <div class="section">
+            <h3>Dashboard Officers</h3>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr><th>ID</th><th>Username</th><th>First Login</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for o in officers %}
+                        <tr>
+                            <td>{{ o.id }}</td>
+                            <td>{{ o.username }}</td>
+                            
+                            <td>{{ '✓' if not o.is_first_login else '' }}</td>
+                            
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- TAB: Add User -->
+    <div class="tab-panel" id="tab-add-user">
+        <div class="section">
+            <h3>Add New User</h3>
+
+            <div class="tabs" style="margin-bottom: 20px;">
+                <div class="tab active" id="type-tab-field" onclick="showUserType('field')">Field User</div>
+                <div class="tab" id="type-tab-officer" onclick="showUserType('officer')">Dashboard Officer</div>
+            </div>
+
+            <form method="post" action="{{ url_for('admin_add_user') }}">
+                <input type="hidden" name="user_type" id="user_type" value="field">
+
+                <!-- Field User fields -->
+                <div id="fields-field-user">
+                    <div class="grid">
+                        <div class="field"><label>SS ID</label><input name="ss_id" type="number" required></div>
+                        <div class="field"><label>Dist Code</label><input name="dist_code" type="number"></div>
+                        <div class="field"><label>Dist Name</label><input name="dist_name"></div>
+                        <div class="field"><label>Substation Name</label><input name="sub_station_name" required></div>
+                        <div class="field"><label>Voltage</label><input name="voltage" placeholder="e.g. 132/33"></div>
+                        <div class="field"><label>Mobile No</label><input name="mobile_no" type="number"></div>
+                        <div class="field"><label>Password</label><input name="password" value="password@123"></div>
+                        <div class="field">
+            <label>Zone</label>
+            <select name="zone" id="add-zone" onchange="loadCircles(this.value)">
+                <option value="">— Select Zone —</option>
+                {% for z in zones %}
+                <option value="{{ z }}">{{ z }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label>Circle</label>
+            <select name="circle" id="add-circle">
+                <option value="">— Select Circle —</option>
+            </select>
+        </div>
+                    </div>
+                </div>
+
+                <!-- Dashboard Officer fields -->
+                <div id="fields-officer" style="display:none;">
+                    <div class="grid">
+                        <div class="field"><label>Username</label><input name="username"></div>
+                        <div class="field"><label>Password</label><input name="officer_password" value="password@123"></div>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-dark" id="add-user-submit">Add Substation / User</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- TAB: Change Password -->
+    <div class="tab-panel" id="tab-change-pass">
+        <div class="section">
+            <h3>Change Field User Password</h3>
+            <form method="post" action="{{ url_for('admin_change_password') }}" style="max-width: 400px;" onsubmit="return validateUserSelected()">
+                <div class="field user-select-wrap" id="user-select-wrapper" style="margin-bottom:14px;">
+                    <label>Select Substation / User</label>
+                    <input type="text" id="user-search-box" class="search-box" style="width:100%; margin-bottom:0;"
+                           placeholder="Type to search substation or officer..." autocomplete="off"
+                           oninput="filterUserOptions(this.value)" onfocus="openUserDropdown()">
+                    <input type="hidden" name="ss_id" id="user-select-value">
+                    <div id="user-dropdown" class="user-dropdown"></div>
+                </div>
+                <div class="field" style="margin-bottom:14px;">
+                    <label>New Password</label>
+                    <input type="password" name="new_password" required>
+                </div>
+                <div class="field" style="margin-bottom:18px;">
+                    <label>Confirm Password</label>
+                    <input type="password" name="confirm_password" required>
+                </div>
+                <button type="submit" class="btn btn-dark">Update Password</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function showTab(name) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    event.currentTarget.classList.add('active');
+}
+
+function filterTable(tableId, q) {
+    q = q.toLowerCase();
+    document.querySelectorAll('#' + tableId + ' tbody tr').forEach(r => {
+        r.style.display = r.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+function showUserType(type) {
+    document.getElementById('user_type').value = type;
+    document.getElementById('type-tab-field').classList.toggle('active', type === 'field');
+    document.getElementById('type-tab-officer').classList.toggle('active', type === 'officer');
+    document.getElementById('fields-field-user').style.display = type === 'field' ? '' : 'none';
+    document.getElementById('fields-officer').style.display    = type === 'officer' ? '' : 'none';
+
+    // Only require substation fields when adding a Field User, so the
+    // Dashboard Officer form (username/password only) can submit cleanly.
+    document.querySelector('#fields-field-user [name="ss_id"]').required = (type === 'field');
+    document.querySelector('#fields-field-user [name="sub_station_name"]').required = (type === 'field');
+
+    document.getElementById('add-user-submit').textContent =
+        type === 'officer' ? 'Add Dashboard Officer' : 'Add Substation / User';
+}
+
+function loadCircles(zone) {
+    const circleSelect = document.getElementById('add-circle');
+    circleSelect.innerHTML = '<option value="">— Select Circle —</option>';
+    if (!zone) return;
+    fetch('/circles/' + encodeURIComponent(zone))
+        .then(r => r.json())
+        .then(circles => {
+            circles.forEach(c => {
+                const opt = document.createElement('option');
+                opt.value = c;
+                opt.textContent = c;
+                circleSelect.appendChild(opt);
+            });
+        });
+}
+
+// ── Change Password: searchable user picker ─────────────────────────────
+// Replaces the old plain <select> (which relied on the browser's own
+// type-ahead — inconsistent across browsers and only cycles one letter at
+// a time) with a live text-filtered dropdown, same pattern as the Flutter
+// app's DropdownMenu fix.
+const USER_OPTIONS = [
+    ...{{ substations | tojson }}.map(s => ({
+        value: 'field_' + s.ss_id,
+        label: s.sub_station_name + ' (' + (s.mobile_no || 'no mobile') + ')',
+        group: 'Field Users'
+    })),
+    ...{{ officers | tojson }}.map(o => ({
+        value: 'officer_' + o.id,
+        label: o.username,
+        group: 'Dashboard Officers'
+    }))
+];
+
+let userDropdownVisible = [];
+let userDropdownHighlight = -1;
+
+function renderUserDropdown(query) {
+    const q = (query || '').toLowerCase();
+    userDropdownVisible = USER_OPTIONS.filter(o => o.label.toLowerCase().includes(q));
+    const dropdown = document.getElementById('user-dropdown');
+    dropdown.innerHTML = '';
+
+    if (userDropdownVisible.length === 0) {
+        dropdown.innerHTML = '<div class="empty">No matches found</div>';
+        userDropdownHighlight = -1;
+        return;
+    }
+
+    let lastGroup = null;
+    userDropdownVisible.forEach((opt, i) => {
+        if (opt.group !== lastGroup) {
+            const groupEl = document.createElement('div');
+            groupEl.className = 'group-label';
+            groupEl.textContent = opt.group;
+            dropdown.appendChild(groupEl);
+            lastGroup = opt.group;
+        }
+        const optEl = document.createElement('div');
+        optEl.className = 'option' + (i === userDropdownHighlight ? ' highlighted' : '');
+        optEl.textContent = opt.label;
+        optEl.onclick = () => selectUserOption(opt);
+        dropdown.appendChild(optEl);
+    });
+}
+
+function openUserDropdown() {
+    document.getElementById('user-dropdown').classList.add('open');
+    renderUserDropdown(document.getElementById('user-search-box').value);
+}
+
+function filterUserOptions(value) {
+    userDropdownHighlight = -1;
+    document.getElementById('user-select-value').value = '';
+    openUserDropdown();
+}
+
+function selectUserOption(opt) {
+    document.getElementById('user-search-box').value = opt.label;
+    document.getElementById('user-select-value').value = opt.value;
+    document.getElementById('user-dropdown').classList.remove('open');
+}
+
+function validateUserSelected() {
+    if (!document.getElementById('user-select-value').value) {
+        alert('Please select a user from the list');
+        return false;
+    }
+    return true;
+}
+
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('#user-select-wrapper')) {
+        document.getElementById('user-dropdown').classList.remove('open');
+    }
+});
+
+document.getElementById('user-search-box').addEventListener('keydown', (e) => {
+    if (!userDropdownVisible.length) return;
+    if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        userDropdownHighlight = Math.min(userDropdownHighlight + 1, userDropdownVisible.length - 1);
+        renderUserDropdown(document.getElementById('user-search-box').value);
+    } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        userDropdownHighlight = Math.max(userDropdownHighlight - 1, 0);
+        renderUserDropdown(document.getElementById('user-search-box').value);
+    } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (userDropdownHighlight >= 0 && userDropdownHighlight < userDropdownVisible.length) {
+            selectUserOption(userDropdownVisible[userDropdownHighlight]);
+        }
+    } else if (e.key === 'Escape') {
+        document.getElementById('user-dropdown').classList.remove('open');
+    }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SLIS — SubStation Load Data</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='images/logo3.png') }}">
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Inter', sans-serif; background: #f5f5f5; color: #111; }
+.page-wrap { padding: 28px 20px; }
+.page-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
+h2 { font-size: 20px; font-weight: 600; }
+.count { font-size: 13px; color: #666; }
+.search-box { padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; font-family: inherit; outline: none; width: 240px; }
+.search-box:focus { border-color: #111; }
+.table-wrap { background: #fff; border: 1px solid #e5e5e5; border-radius: 12px; overflow: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 900px; }
+thead th {
+    padding: 11px 14px; text-align: left;
+    font-size: 12px; font-weight: 600; color: #555;
+    background: #fafafa; border-bottom: 1px solid #e5e5e5;
+    white-space: nowrap; position: sticky; top: 0;
+}
+tbody td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; color: #222; }
+tbody tr:last-child td { border-bottom: none; }
+tbody tr:hover td { background: #fafafa; }
+.no-rows { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
+
+.actions-cell { white-space: nowrap; }
+.action-btn {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 6px; border: 1px solid #e0e0e0;
+    background: #fff; cursor: pointer; margin-right: 6px; font-size: 13px;
+    color: #444; transition: background 0.15s;
+}
+.action-btn:hover { background: #f0f0f0; }
+.action-btn.delete-btn:hover { background: #fde8e8; border-color: #f5b5b5; color: #b91c1c; }
+.action-btn.edit-btn:hover { background: #e8f0fe; border-color: #a9c6fb; color: #1a56db; }
+
+.modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    align-items: center; justify-content: center; z-index: 1000;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+    background: #fff; border-radius: 12px; padding: 24px; width: 420px;
+    max-width: 92vw; max-height: 86vh; overflow-y: auto;
+    box-shadow: 0 12px 32px rgba(0,0,0,0.18);
+}
+.modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.modal-grid .modal-field.full { grid-column: 1 / -1; }
+.modal-box h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
+.modal-field { margin-bottom: 12px; }
+.modal-field label { display: block; font-size: 12px; font-weight: 500; color: #555; margin-bottom: 4px; }
+.modal-field input, .modal-field textarea {
+    width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 7px;
+    font-size: 13px; font-family: inherit; outline: none;
+}
+.modal-field input:focus, .modal-field textarea:focus { border-color: #1a56db; }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.modal-btn { padding: 8px 16px; border-radius: 7px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; }
+.modal-btn.cancel { background: #f0f0f0; color: #333; }
+.modal-btn.save { background: #1a56db; color: #fff; }
+.modal-btn.save:hover { background: #1746b0; }
+.modal-error { color: #b91c1c; font-size: 12px; margin-top: 8px; display: none; }
+</style>
+</head>
+<body>
+{% include '_navbar.html' %}
+
+<div class="page-wrap">
+    <div class="page-head">
+        <div>
+            <h2>SubStation Load Data</h2>
+            <span class="count" id="row-count">{{ rows|length }} records</span>
+        </div>
+        <input type="text" class="search-box" placeholder="Search..." oninput="filterTable(this.value)">
+    </div>
+
+    <div class="table-wrap">
+        <table id="data-table">
+            <thead>
+                <tr>
+                    {% for col in columns %}
+                    <th>{{ col }}</th>
+                    {% endfor %}
+                    {% if can_edit %}<th>Actions</th>{% endif %}
+                </tr>
+            </thead>
+            <tbody id="table-body">
+                {% for row in rows %}
+                <tr data-id="{{ row['id'] }}">
+                    {% for col in columns %}
+                    <td>{{ row[col] if row[col] is not none else '' }}</td>
+                    {% endfor %}
+                    {% if can_edit %}
+                    <td class="actions-cell">
+                        <button class="action-btn edit-btn" title="Edit"
+                            onclick='openEditModal({{ row|tojson }})'>&#9998;</button>
+                        <button class="action-btn delete-btn" title="Delete"
+                            onclick="deleteEntry({{ row['id'] }})">&#128465;</button>
+                    </td>
+                    {% endif %}
+                </tr>
+                {% else %}
+                <tr><td class="no-rows" colspan="{{ columns|length + (1 if can_edit else 0) }}">No data available</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if can_edit %}
+<div class="modal-overlay" id="edit-modal">
+    <div class="modal-box">
+        <h3>Edit Load Entry</h3>
+        <input type="hidden" id="edit-id">
+        <div class="modal-grid">
+            <div class="modal-field">
+                <label>Sno</label>
+                <input type="text" id="edit-sno">
+            </div>
+            <div class="modal-field">
+                <label>SS ID</label>
+                <input type="text" id="edit-ss_id">
+            </div>
+            <div class="modal-field full">
+                <label>SS Name</label>
+                <input type="text" id="edit-ss_name">
+            </div>
+            <div class="modal-field">
+                <label>PTR Capacity</label>
+                <input type="text" id="edit-PTR_Capacity">
+            </div>
+            <div class="modal-field">
+                <label>Voltage Rating</label>
+                <input type="text" id="edit-Voltage_Rating">
+            </div>
+            <div class="modal-field">
+                <label>Max Load (MVA)</label>
+                <input type="text" id="edit-maxload">
+            </div>
+            <div class="modal-field">
+                <label>Min Load (MVA)</label>
+                <input type="text" id="edit-minload">
+            </div>
+            <div class="modal-field">
+                <label>Max Load Time</label>
+                <input type="text" id="edit-loadtime" placeholder="HH:MM">
+            </div>
+            <div class="modal-field">
+                <label>Min Load Time</label>
+                <input type="text" id="edit-min_loadtime" placeholder="HH:MM">
+            </div>
+            <div class="modal-field">
+                <label>Load Date</label>
+                <input type="text" id="edit-loaddate" placeholder="YYYY-MM-DD">
+            </div>
+            <div class="modal-field">
+                <label>Created By</label>
+                <input type="text" id="edit-created_by">
+            </div>
+            <div class="modal-field">
+                <label>Created On</label>
+                <input type="text" id="edit-created_on">
+            </div>
+            <div class="modal-field">
+                <label>Transid</label>
+                <input type="text" id="edit-transid">
+            </div>
+            <div class="modal-field full">
+                <label>Remarks</label>
+                <textarea id="edit-remarks" rows="2"></textarea>
+            </div>
+        </div>
+        <div class="modal-error" id="edit-error"></div>
+        <div class="modal-actions">
+            <button class="modal-btn cancel" onclick="closeEditModal()">Cancel</button>
+            <button class="modal-btn save" onclick="saveEdit()">Save</button>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function filterTable(q) {
+    q = q.toLowerCase();
+    const rows = document.querySelectorAll('#table-body tr');
+    let visible = 0;
+    rows.forEach(r => {
+        const match = r.textContent.toLowerCase().includes(q);
+        r.style.display = match ? '' : 'none';
+        if (match) visible++;
+    });
+    document.getElementById('row-count').textContent = visible + ' records';
+}
+
+function openEditModal(row) {
+    document.getElementById('edit-id').value = row.id;
+    document.getElementById('edit-sno').value = row.sno ?? '';
+    document.getElementById('edit-ss_id').value = row.ss_id ?? '';
+    document.getElementById('edit-ss_name').value = row.ss_name ?? '';
+    document.getElementById('edit-PTR_Capacity').value = row.PTR_Capacity ?? '';
+    document.getElementById('edit-Voltage_Rating').value = row.Voltage_Rating ?? '';
+    document.getElementById('edit-maxload').value = row.maxload ?? '';
+    document.getElementById('edit-minload').value = row.minload ?? '';
+    document.getElementById('edit-loadtime').value = row.loadtime ?? '';
+    document.getElementById('edit-min_loadtime').value = row.min_loadtime ?? '';
+    document.getElementById('edit-loaddate').value = row.loaddate ?? '';
+    document.getElementById('edit-created_by').value = row.created_by ?? '';
+    document.getElementById('edit-created_on').value = row.created_on ?? '';
+    document.getElementById('edit-transid').value = row.transid ?? '';
+    document.getElementById('edit-remarks').value = row.remarks ?? '';
+    document.getElementById('edit-error').style.display = 'none';
+    document.getElementById('edit-modal').classList.add('open');
+}
+
+function closeEditModal() {
+    document.getElementById('edit-modal').classList.remove('open');
+}
+
+// Both loaddate and created_on are displayed as dd-mm-yyyy (per the earlier date-format
+// change) but Postgres needs yyyy-mm-dd to avoid ambiguous-order misparsing. Convert back
+// on the way out; if the field wasn't touched it still round-trips correctly.
+function ddmmyyyyToIso(s) {
+    const m = s.match(/^(\d{2})-(\d{2})-(\d{4})(.*)$/);
+    if (!m) return s;
+    return `${m[3]}-${m[2]}-${m[1]}${m[4]}`;
+}
+
+async function saveEdit() {
+    const id = document.getElementById('edit-id').value;
+    const payload = {
+        sno: document.getElementById('edit-sno').value,
+        ss_id: document.getElementById('edit-ss_id').value,
+        ss_name: document.getElementById('edit-ss_name').value,
+        PTR_Capacity: document.getElementById('edit-PTR_Capacity').value,
+        Voltage_Rating: document.getElementById('edit-Voltage_Rating').value,
+        maxload: document.getElementById('edit-maxload').value,
+        minload: document.getElementById('edit-minload').value,
+        loadtime: document.getElementById('edit-loadtime').value,
+        min_loadtime: document.getElementById('edit-min_loadtime').value,
+        loaddate: ddmmyyyyToIso(document.getElementById('edit-loaddate').value),
+        created_by: document.getElementById('edit-created_by').value,
+        created_on: ddmmyyyyToIso(document.getElementById('edit-created_on').value),
+        transid: document.getElementById('edit-transid').value,
+        remarks: document.getElementById('edit-remarks').value,
+    };
+    const errBox = document.getElementById('edit-error');
+    try {
+        const res = await fetch(`/api/admin/update_load_entry/${id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            errBox.textContent = data.error || 'Failed to save changes';
+            errBox.style.display = 'block';
+        }
+    } catch (e) {
+        errBox.textContent = 'Connection error';
+        errBox.style.display = 'block';
+    }
+}
+
+async function deleteEntry(id) {
+    if (!confirm('Delete this load entry? This cannot be undone.')) return;
+    try {
+        const res = await fetch(`/api/admin/delete_load_entry/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+            document.querySelector(`tr[data-id="${id}"]`).remove();
+            const remaining = document.querySelectorAll('#table-body tr').length;
+            document.getElementById('row-count').textContent = remaining + ' records';
+        } else {
+            alert('Failed to delete: ' + (data.error || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Connection error while deleting');
+    }
+}
+</script>
+</body>
+</html>
