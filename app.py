@@ -18,6 +18,7 @@ def df_to_records(df):
     return df.astype(object).where(pd.notnull(df), None).to_dict(orient="records")
 
 
+
 # ─── DAILY ENTRY CONSTANTS ────────────────────────────────────────────
 PTR_ORDER = (
     ' ORDER BY NULLIF(SPLIT_PART("Voltage_Rating", \'/\', 1), \'\')::INT DESC NULLS LAST,'
@@ -66,7 +67,7 @@ def _next_available_id(cur, table="SubStationLoad"):
 
 
 # ─── GROQ / CHATBOT CONFIG ────────────────────────────────────────────────────
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "GROQ_API_KEY")
+GROQ_API_KEY = os.environ["GROQ_API_KEY"]
 GROQ_URL     = "https://api.groq.com/openai/v1/chat/completions"
 GROQ_MODEL   = "llama-3.3-70b-versatile"
 
@@ -659,6 +660,14 @@ def station_max():
     from_date = data.get("from_date")
     to_date   = data.get("to_date")
 
+    # Field users are hard-scoped to their own substation regardless of
+    # what ss_ids the client sends — client-side selection is UX only,
+    # this is the real enforcement point.
+    caller_role  = data.get("role")
+    caller_ss_id = data.get("ss_id")
+    if caller_role == "field" and caller_ss_id:
+        ss_ids = [caller_ss_id]
+
     try:
         if not ss_ids:
             return jsonify({"peak": [], "full": []})
@@ -724,6 +733,11 @@ def ptr_details_peak():
     data  = request.json
     ss_id = data.get("ss_id")
     date  = data.get("date")
+
+    caller_role   = data.get("role")
+    caller_ss_id  = data.get("caller_ss_id")
+    if caller_role == "field" and caller_ss_id and str(ss_id) != str(caller_ss_id):
+        return jsonify([])
 
     try:
         conn  = get_conn()
@@ -1359,7 +1373,7 @@ def daily_entry():
             '''
             SELECT
                 c.sno, c.ss_id, c.ss_name, c."PTR_Capacity", c."Voltage_Rating",
-                c."Manufacturer", c."ManufSerialNo",
+                c."Manufacturer", c."ManufSerialNo", c.ptr_ref,
                 l.maxload, l.loadtime, l.minload, l.min_loadtime
             FROM capacity_new c
             LEFT JOIN "SubStationLoad" l
@@ -1367,8 +1381,7 @@ def daily_entry():
             WHERE c.ss_id = %s
             ORDER BY
                 NULLIF(SPLIT_PART(c."Voltage_Rating", '/', 1), '')::INT DESC NULLS LAST,
-                NULLIF(c."PTR_Capacity", '')::INT DESC NULLS LAST,
-                c.sno
+                c.ptr_ref
             ''',
             conn, params=[target_date, ss_id]
         )
@@ -1645,6 +1658,27 @@ def admin_add_user():
         conn.rollback()
         conn.close()
         return redirect(url_for("admin_settings"))
+@app.route("/api/admin/update_ptr_ref/<int:sno>", methods=["POST"])
+def update_ptr_ref(sno):
+    if not is_admin():
+        return jsonify({"success": False, "error": "Unauthorized"}), 403
+    data = request.get_json(force=True)
+    ptr_ref = data.get("ptr_ref")
+    if ptr_ref is None or str(ptr_ref).strip() == "":
+        return jsonify({"success": False, "error": "ptr_ref is required"}), 400
+    conn = get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute('UPDATE capacity_new SET ptr_ref = %s WHERE sno = %s', (ptr_ref, sno))
+        if cur.rowcount == 0:
+            conn.rollback(); conn.close()
+            return jsonify({"success": False, "error": "Row not found"}), 404
+        conn.commit(); conn.close()
+        return jsonify({"success": True})
+    except Exception as e:
+        conn.rollback(); conn.close()
+        print("UPDATE PTR_REF ERROR:", e)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 @app.route("/api/admin/officers", methods=["GET"])
 def api_admin_officers():
@@ -1674,7 +1708,12 @@ def api_capacity():
         return jsonify({"error": "Not logged in"}), 401
     try:
         conn = get_conn()
-        df = pd.read_sql('SELECT c.sno, c.ss_id, c.ss_name, c."PTR_Capacity", c."Voltage_Rating", c."Manufacturer", c."ManufSerialNo", c."YoM", c."Doc" FROM capacity_new c ORDER BY c.ss_id, c.sno', conn)
+        df = pd.read_sql(
+            'SELECT c.sno, c.ss_id, c.ss_name, c."PTR_Capacity", c."Voltage_Rating", '
+            'c."Manufacturer", c."ManufSerialNo", c."YoM", c."Doc", c.ptr_ref '
+            'FROM capacity_new c ORDER BY c.ss_id, c.ptr_ref',
+            conn
+        )
         conn.close()
         return jsonify(df_to_records(df))
     except Exception as e:
@@ -1770,12 +1809,18 @@ def api_login():
         cols2 = [d[0] for d in cur.description]
         row2  = cur.fetchone()
 
+        # Field users
+        cur.execute("SELECT ss_id, sub_station_name, mobile_no, password, zone, circle FROM slis_substationdata WHERE mobile_no = %s", (username,))
+        cols2 = [d[0] for d in cur.description]
+        row2  = cur.fetchone()
+
         if row2:
             fu = dict(zip(cols2, row2))
             conn.close()
             if fu["password"] == password:
                 return jsonify({"success": True, "role": "field", "user": username,
-                                "ss_id": fu["ss_id"], "ss_name": fu["sub_station_name"]})
+                                "ss_id": fu["ss_id"], "ss_name": fu["sub_station_name"],
+                                "zone": fu.get("zone"), "circle": fu.get("circle")})
             return jsonify({"success": False, "error": "Invalid credentials"}), 401
 
         conn.close()
@@ -1800,7 +1845,7 @@ def api_ptrs(ss_id):
             '''
             SELECT
                 c.sno, c.ss_id, c.ss_name, c."PTR_Capacity", c."Voltage_Rating",
-                c."Manufacturer", c."ManufSerialNo",
+                c."Manufacturer", c."ManufSerialNo", c.ptr_ref,
                 l.maxload, l.loadtime, l.minload, l.min_loadtime
             FROM capacity_new c
             LEFT JOIN "SubStationLoad" l
@@ -1808,14 +1853,12 @@ def api_ptrs(ss_id):
             WHERE c.ss_id = %s
             ORDER BY
                 NULLIF(SPLIT_PART(c."Voltage_Rating", '/', 1), '')::INT DESC NULLS LAST,
-                NULLIF(c."PTR_Capacity", '')::INT DESC NULLS LAST,
-                c.sno
+                c.ptr_ref
             ''',
             conn, params=[target_date, ss_id]
         )
         conn.close()
 
-        # Clean time values to HH:MM in case they carry seconds
         for col in ("loadtime", "min_loadtime"):
             df[col] = df[col].apply(
                 lambda v: str(v)[:5] if v not in (None, "") and not pd.isnull(v) else None
@@ -1881,13 +1924,24 @@ def api_load_data():
         from_date = data.get("from_date")
         to_date   = data.get("to_date")
 
+        caller_role  = data.get("role")
+        caller_ss_id = data.get("ss_id")
+        if caller_role == "field" and caller_ss_id:
+            ss_ids = [caller_ss_id]
+
         if not ss_ids:
             return jsonify([])
 
         placeholders = ",".join(["%s"] * len(ss_ids))
         conn = get_conn()
         df   = pd.read_sql(
-            f'SELECT * FROM "SubStationLoad" WHERE ss_id IN ({placeholders}) AND loaddate BETWEEN %s AND %s ORDER BY loaddate DESC',
+            f'''
+            SELECT l.*, c."Manufacturer", c."ManufSerialNo", c."YoM", c."Doc"
+            FROM "SubStationLoad" l
+            LEFT JOIN capacity_new c ON l.ss_id = c.ss_id AND l.sno = c.sno
+            WHERE l.ss_id IN ({placeholders}) AND l.loaddate BETWEEN %s AND %s
+            ORDER BY l.loaddate DESC
+            ''',
             conn, params=list(ss_ids) + [from_date, to_date]
         )
         conn.close()
@@ -1921,6 +1975,17 @@ def api_admin_change_password():
     data = request.json
     ss_id = data.get("ss_id")
     new_pass = data.get("new_password")
+
+    # Field users (role="field" sent from the app) may only change their own
+    # password — never impersonate another substation's ss_id. Admin/officer
+    # callers (no role, or role != field) keep unrestricted access, same as
+    # the website's admin settings page.
+    caller_role  = data.get("role")
+    caller_ss_id = data.get("caller_ss_id")
+    if caller_role == "field":
+        if not caller_ss_id or ss_id != f"field_{caller_ss_id}":
+            return jsonify({"error": "Unauthorized"}), 403
+
     conn = get_conn()
     cur = conn.cursor()
     if ss_id.startswith("officer_"):

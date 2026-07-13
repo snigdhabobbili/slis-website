@@ -28,6 +28,20 @@ tbody td { padding: 10px 14px; border-bottom: 1px solid #f0f0f0; color: #222; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover td { background: #fafafa; }
 .no-rows { text-align: center; padding: 40px; color: #aaa; font-size: 14px; }
+
+.ptr-ref-cell { display: flex; align-items: center; gap: 8px; }
+.ptr-ref-input {
+    width: 56px; padding: 4px 6px; border: 1px solid #ccc; border-radius: 6px;
+    font-size: 13px; font-family: inherit;
+}
+.icon-btn {
+    background: none; border: none; cursor: pointer; padding: 4px;
+    display: inline-flex; align-items: center; justify-content: center;
+    color: #666; border-radius: 6px;
+}
+.icon-btn:hover { background: #eee; color: #111; }
+.icon-btn.save { color: #1a7f37; }
+.icon-btn.cancel { color: #c0392b; }
 </style>
 </head>
 <body>
@@ -49,17 +63,34 @@ tbody tr:hover td { background: #fafafa; }
                     {% for col in columns %}
                     <th>{{ col }}</th>
                     {% endfor %}
+                    <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="table-body">
                 {% for row in rows %}
-                <tr>
+                <tr data-sno="{{ row['sno'] }}">
                     {% for col in columns %}
-                    <td>{{ row[col] if row[col] is not none else '' }}</td>
+                    <td {% if col == 'ptr_ref' %}class="ptr-ref-td"{% endif %}>
+                        {% if col == 'ptr_ref' %}
+                        <div class="ptr-ref-cell">
+                            <span class="ptr-ref-display" data-raw="{{ row[col] }}">PTR-{{ row[col] if row[col] is not none else '' }}</span>
+                        </div>
+                        {% else %}
+                            {{ row[col] if row[col] is not none else '' }}
+                        {% endif %}
+                    </td>
                     {% endfor %}
+                   <td>
+                        <button class="icon-btn edit-btn" title="Edit PTR Ref" onclick="startEdit(this)">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                        </button>
+                    </td>
                 </tr>
                 {% else %}
-                <tr><td class="no-rows" colspan="{{ columns|length }}">No data available</td></tr>
+                <tr><td class="no-rows" colspan="{{ columns|length + 1 }}">No data available</td></tr>
                 {% endfor %}
             </tbody>
         </table>
@@ -77,6 +108,63 @@ function filterTable(q) {
         if (match) visible++;
     });
     document.getElementById('row-count').textContent = visible + ' records';
+}
+
+function startEdit(btn) {
+    const tr = btn.closest('tr');
+    const sno = tr.dataset.sno;
+    const cell = tr.querySelector('.ptr-ref-cell');
+    const display = cell.querySelector('.ptr-ref-display');
+    const currentVal = display.dataset.raw;  // raw number, not "PTR-1"
+
+    cell.innerHTML = `
+        <input type="number" class="ptr-ref-input" value="${currentVal}" />
+        <button class="icon-btn save" title="Save" onclick="saveEdit(this, '${sno}')">✔</button>
+        <button class="icon-btn cancel" title="Cancel" onclick="cancelEdit(this, '${currentVal}')">✕</button>
+    `;
+    btn.style.display = 'none';
+}
+
+function cancelEdit(btn, originalVal) {
+    const tr = btn.closest('tr');
+    const cell = btn.closest('.ptr-ref-cell');
+    cell.innerHTML = `<span class="ptr-ref-display" data-raw="${originalVal}">PTR-${originalVal}</span>`;
+    tr.querySelector('.edit-btn').style.display = '';
+}
+
+async function saveEdit(btn, sno) {
+    const tr = btn.closest('tr');
+    const cell = btn.closest('.ptr-ref-cell');
+    const input = cell.querySelector('.ptr-ref-input');
+    const newVal = input.value.trim();
+
+    if (newVal === '') {
+        alert('PTR Ref cannot be empty');
+        return;
+    }
+
+    try {
+        const resp = await fetch(`/api/admin/update_ptr_ref/${sno}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ptr_ref: parseInt(newVal, 10) })
+        });
+        let data;
+        try {
+            data = await resp.json();
+        } catch (parseErr) {
+            alert('Server error (' + resp.status + '): could not save. Check the server.');
+            return;
+        }
+        if (resp.ok && data.success) {
+            cell.innerHTML = `<span class="ptr-ref-display" data-raw="${newVal}">PTR-${newVal}</span>`;
+            tr.querySelector('.edit-btn').style.display = '';
+        } else {
+            alert('Failed to update: ' + (data.error || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Server error: ' + e.message);
+    }
 }
 </script>
 </body>
